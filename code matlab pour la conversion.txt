@@ -1,0 +1,7 @@
+img = imread('chromosomes.jpg');% l'image originale
+if size(img,3)==3, img=rgb2gray(img); end
+img = imresize(img, [128 128]); % Must be small for IRAM
+fid = fopen('image_data.h', 'w');
+fprintf(fid, '#define WIDTH 128\n#define HEIGHT 128\n');
+fprintf(fid, 'unsigned char input_img[16384] = {\n');
+fprintf(fid, '%d, ', img(1:end-1));

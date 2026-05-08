@@ -1,0 +1,33 @@
+
+% MATLAB script to visualize DSP result
+% Define resolution
+res = 128;
+% 1. Open file
+[file, path] = uigetfile('*.dat', 'C:\Users\DELL\Desktop\result2.dat');
+fid = fopen(fullfile(path, file), 'r');
+% 2. Skip the CCS Header
+fgetl(fid); 
+% 3. Read the data
+% CCS TI Data is usually hex. 
+data = fscanf(fid, '%x'); 
+fclose(fid);
+% 4. Check if data length matches resolution
+if length(data) < res*res
+    error('File does not have enough data for 128x128 pixels!');
+end
+
+% 5. Process and Display
+% We take the first 16384 values and reshape
+img_vector = data(1:res*res);
+img_final = reshape(img_vector, [res, res])'; % Transpose to match C order
+
+% 6. Show Result
+figure;
+subplot(1,2,1);
+imshow(uint8(reshape(img_vector, [res, res]))); % Raw view
+title('Raw Vector Reshape');
+
+subplot(1,2,2);
+imshow(uint8(img_final)); % Corrected view
+title(['Corrected Result (Resolution: ', num2str(res), 'x', num2str(res), ')']);
+colormap(gray);

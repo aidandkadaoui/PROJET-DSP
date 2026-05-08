@@ -1,0 +1,90 @@
+%%  Créer dossier sur le DESKTOP
+desktop = fullfile(getenv('USERPROFILE'),'Desktop');
+folder = fullfile(desktop, 'Chromosomes_Results');
+if ~exist(folder, 'dir')
+    mkdir(folder);
+end
+% 1. CHARGEMENT IMAGE
+img = imread('chromosomes.jpg');
+if size(img,3) == 3
+    img = rgb2gray(img);
+end
+imwrite(img, fullfile(folder,'1_original.png'));
+% 1. PRETRAITEMENT%% 
+img_filt = medfilt2(img, [3 3]);
+img_enh  = imadjust(img_filt);
+imwrite(img_enh, fullfile(folder,'2_pretraitee.png'));
+% 3. BINARISATION
+level = graythresh(img_enh);
+bw = imbinarize(img_enh, level);
+bw = ~bw;
+imwrite(bw, fullfile(folder,'3_binaire.png'));
+% 4. NETTOYAGE
+bw = bwareaopen(bw, 50);
+bw = imfill(bw, 'holes');
+se = strel('disk', 2);
+bw = imopen(bw, se);
+bw = imclose(bw, se);
+imwrite(bw, fullfile(folder,'4_nettoyee.png'));
+% 5. WATERSHED
+D = -bwdist(~bw);
+mask = imextendedmin(D, 2);
+D2 = imimposemin(D, mask);
+L = watershed(D2);
+bw(L == 0) = 0;
+imwrite(bw, fullfile(folder,'5_watershed.png'));
+% 6. LABEL
+[Labeled, num] = bwlabel(bw);
+rgb_label = label2rgb(Labeled);
+imwrite(rgb_label, fullfile(folder,'6_label.png'));
+% 7. CONTOURS
+figure;
+imshow(img); hold on;
+visboundaries(bw,'Color','r');
+saveas(gcf, fullfile(folder,'7_contours.png'));
+close;
+% 8. EXTRACTION TOUS LES CHROMOS
+stats = regionprops(Labeled, 'BoundingBox', 'Image');
+for k = 1:num   % ? TOUS les chromosomes
+    bb = stats(k).BoundingBox;
+    subImg = imcrop(img, bb);
+    mask = stats(k).Image;
+    mask = imresize(mask, [size(subImg,1) size(subImg,2)]);
+
+    chromo_bin = ~mask;
+    chromo_bin = uint8(chromo_bin) * 255;
+    imwrite(chromo_bin, fullfile(folder, ['chromo_', num2str(k), '.png']));
+end
+% 9. BOX + NUMÉROS
+figure;
+imshow(img); hold on;
+
+for k = 1:num   % ? TOUS les chromosomes
+
+    bb = stats(k).BoundingBox;
+    rectangle('Position', bb, 'EdgeColor', 'g', 'LineWidth', 2);
+    text(bb(1), bb(2)-10, num2str(k), ...
+        'Color','red','FontSize',12,'FontWeight','bold');
+end
+saveas(gcf, fullfile(folder,'8_boxes.png'));
+close;
+% 10. SKELETON
+skeleton = bwmorph(bw, 'skel', Inf);
+imwrite(skeleton, fullfile(folder,'9_skeleton.png'));
+% 11. STENTIFORD
+stentiford = bwmorph(bw, 'thin', Inf);
+imwrite(stentiford, fullfile(folder,'10_stentiford.png'));
+% 12. SOBEL
+sobel_edges = edge(img_enh, 'sobel');
+imwrite(sobel_edges, fullfile(folder,'11_sobel.png')); 
+% 13. LAPLACIEN
+h = fspecial('laplacian', 0.2);
+lap_img = imfilter(double(img_enh), h, 'replicate');
+imwrite(mat2gray(lap_img), fullfile(folder,'12_laplacien.png'));
+% 14. MORPH GRADIENT
+se = strel('disk',1);
+dil = imdilate(img_enh, se);
+ero = imerode(img_enh, se);
+morph_grad = dil - ero;
+imwrite(mat2gray(morph_grad), fullfile(folder,'13_morph_gradient.png'));
+disp('Tous les résultats sont enregistrés dans le dossier Desktop/Chromosomes_Results');
